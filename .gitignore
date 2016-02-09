@@ -1,3 +1,7 @@
 *.js_hi
 *.js_o
 Main.jsexe
+Main
+Main.hi
+Main.o
+
