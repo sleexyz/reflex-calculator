@@ -1,4 +1,7 @@
+{-# LANGUAGE RecursiveDo #-} 
+
 import Reflex.Dom
+import qualified Data.Map as Map
 import Safe (readMay)
 
 
@@ -6,23 +9,41 @@ main :: IO ()
 main = mainWidget $ el "div" $ do
   hdDemo
   calculator
+
+
 calculator :: MonadWidget t m => m ()
 calculator = el "div" $ do
   el "h2" $ text $ "calculator"
   nx <- numberInput
-  text " + "
+  d <- dropdown "*" (constDyn ops) def
   ny <- numberInput
-  text " = " 
-  result <- combineDyn (\x y -> (+) <$> x <*> y) nx ny
+  values <- combineDyn (,) nx ny
+  result <- combineDyn (\o (x, y) -> stringToOp o <$> x <*> y) (_dropdown_value d) values
   resultString <- mapDyn show result
+  text " = " 
   dynText resultString
 
 numberInput :: MonadWidget t m => m (Dynamic t (Maybe Double))
 numberInput = do
-    n <- textInput $ def & textInputConfig_inputType .~ "number"
-                         & textInputConfig_initialValue .~ "0"
-    mapDyn readMay $ _textInput_value n -- type inference is done at the top level
+  let errorState = Map.singleton "style" "border-color: red"
+      validState = Map.singleton "style" "border-color: green"
+  
+  rec n <- textInput $ def & textInputConfig_inputType .~ "number"
+                       & textInputConfig_initialValue .~ "0"
+                       & textInputConfig_attributes .~ attrs
+      result <- mapDyn readMay $ _textInput_value n
+      attrs <- mapDyn (\r -> case r of
+                                Just _ -> validState
+                                Nothing -> errorState) result
+  return result
 
+ops = Map.fromList [("+", "+"), ("-", "-"), ("*", "*"), ("/", "/")]
+
+stringToOp s = case s of
+  "-" -> (-)
+  "*" -> (*)
+  "/" -> (/)
+  _ -> (+)
 
 
 hdDemo :: MonadWidget t m => m ()
